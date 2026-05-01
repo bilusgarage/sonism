@@ -39,7 +39,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParam
 //==============================================================================
 const juce::String PluginProcessor::getName() const
 {
-    return JucePlugin_Name;
+    return "Sonism";
 }
 
 bool PluginProcessor::acceptsMidi() const

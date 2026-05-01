@@ -5,8 +5,6 @@ PluginEditor::PluginEditor (PluginProcessor& p)
 {
     juce::ignoreUnused (processorRef);
 
-    outputVisualiser.setColours (juce::Colours::black, juce::Colours::cyan);
-    outputVisualiser.setRepaintRate (30);
     addAndMakeVisible (outputVisualiser);
 
     addAndMakeVisible (keyboardComponent);

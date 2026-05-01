@@ -31,7 +31,8 @@ public:
         if (buffer.getNumChannels() == 0)
             return;
 
-        auto* channelData = buffer.getReadPointer (0);
+        auto* channelDataL = buffer.getReadPointer (0);
+        auto* channelDataR = buffer.getNumChannels() > 1 ? buffer.getReadPointer (1) : channelDataL;
 
         for (int i = 0; i < buffer.getNumSamples(); ++i)
         {
@@ -45,7 +46,7 @@ public:
                 }
                 fifoIndex = 0;
             }
-            fifo[fifoIndex++] = channelData[i];
+            fifo[fifoIndex++] = (channelDataL[i] + channelDataR[i]) * 0.5f;
         }
 
         if (nextFFTBlockReady)
@@ -176,11 +177,13 @@ public:
         if (buffer.getNumChannels() == 0)
             return;
 
-        auto* channelData = buffer.getReadPointer (0);
+        auto* channelDataL = buffer.getReadPointer (0);
+        auto* channelDataR = buffer.getNumChannels() > 1 ? buffer.getReadPointer (1) : channelDataL;
 
         for (int i = 0; i < buffer.getNumSamples(); ++i)
         {
-            samples[(size_t) writePosition] = juce::jlimit (-1.0f, 1.0f, channelData[i] * displayGain);
+            float summed = (channelDataL[i] + channelDataR[i]) * 0.5f;
+            samples[(size_t) writePosition] = juce::jlimit (-1.0f, 1.0f, summed * displayGain);
             writePosition = (writePosition + 1) % (int) samples.size();
         }
 
@@ -250,38 +253,36 @@ private:
     juce::MidiKeyboardComponent keyboardComponent;
 
     juce::GroupComponent oscGroup;
-    juce::TextButton osc1TabButton { "OSC 1" };
-    juce::TextButton osc2TabButton { "OSC 2" };
-    juce::TextButton osc3TabButton { "OSC 3" };
+    std::array<juce::TextButton, 7> oscTabButtons;
 
-    WaveformDisplayComponent waveform1Display;
-    juce::ComboBox waveform1Selector;
-    juce::Slider osc1MixSlider;
-
-    WaveformDisplayComponent waveform2Display;
-    juce::ComboBox waveform2Selector;
-    juce::Slider osc2MixSlider;
-
-    WaveformDisplayComponent waveform3Display;
-    juce::ComboBox waveform3Selector;
-    juce::Slider osc3MixSlider;
+    std::array<WaveformDisplayComponent, 7> waveformDisplays;
+    std::array<juce::ComboBox, 7> waveformSelectors;
+    std::array<juce::Slider, 7> oscMixSliders;
+    std::array<juce::Slider, 7> oscDetuneSliders; // index 0 unused
+    std::array<juce::Label, 7> oscDetuneLabels;
+    std::array<juce::Slider, 7> oscPanSliders;
+    std::array<juce::Label, 7> oscPanLabels;
 
     juce::GroupComponent filterGroup;
     juce::Slider cutoffSlider;
     juce::Slider resonanceSlider;
+    juce::Label cutoffLabel;
+    juce::Label resonanceLabel;
 
     juce::GroupComponent ampEnvGroup;
     juce::Slider attackSlider;
     juce::Slider decaySlider;
     juce::Slider sustainSlider;
     juce::Slider releaseSlider;
+    juce::Label attackLabel;
+    juce::Label decayLabel;
+    juce::Label sustainLabel;
+    juce::Label releaseLabel;
 
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> osc1WaveAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> osc2WaveAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> osc3WaveAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> osc1MixAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> osc2MixAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> osc3MixAttachment;
+    std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>, 7> oscWaveAttachments;
+    std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>, 7> oscMixAttachments;
+    std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>, 7> oscDetuneAttachments;
+    std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>, 7> oscPanAttachments;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> cutoffAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> resonanceAttachment;
 

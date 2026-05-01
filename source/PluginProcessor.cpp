@@ -19,6 +19,10 @@ PluginProcessor::PluginProcessor()
 
     // Add the sound that the voices can play
     synth.addSound (new SynthSound());
+
+    // Initialize per-oscillator scope FIFOs
+    for (int i = 0; i < 7; ++i)
+        oscScopeFifos[i] = std::make_unique<AudioBufferFifo<float>> (48000);
 }
 
 PluginProcessor::~PluginProcessor()
@@ -28,20 +32,25 @@ PluginProcessor::~PluginProcessor()
 juce::AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLayout()
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
-    juce::StringArray waveTypes = { "Sine", "Triangle", "Square", "Sawtooth", "Pulse" };
-    layout.add (std::make_unique<juce::AudioParameterChoice> ("OSC1WAVETYPE", "Osc 1 Wave Type", waveTypes, 0));
-    layout.add (std::make_unique<juce::AudioParameterChoice> ("OSC2WAVETYPE", "Osc 2 Wave Type", waveTypes, 1));
-    layout.add (std::make_unique<juce::AudioParameterChoice> ("OSC3WAVETYPE", "Osc 3 Wave Type", waveTypes, 2));
-    layout.add (std::make_unique<juce::AudioParameterFloat> ("OSC1MIX", "Osc 1 Mix", 0.0f, 1.0f, 1.0f));
-    layout.add (std::make_unique<juce::AudioParameterFloat> ("OSC2MIX", "Osc 2 Mix", 0.0f, 1.0f, 0.0f));
-    layout.add (std::make_unique<juce::AudioParameterFloat> ("OSC3MIX", "Osc 3 Mix", 0.0f, 1.0f, 0.0f));
-    layout.add (std::make_unique<juce::AudioParameterFloat> ("FILTERCUTOFF", "Cutoff", juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 0.3f), 20000.0f));
-    layout.add (std::make_unique<juce::AudioParameterFloat> ("FILTERRES", "Resonance", juce::NormalisableRange<float>(0.1f, 1.0f, 0.01f), 0.1f));
 
-    layout.add (std::make_unique<juce::AudioParameterFloat> ("ATTACK", "Attack", juce::NormalisableRange<float>(0.001f, 5.0f, 0.001f, 0.5f), 0.1f));
-    layout.add (std::make_unique<juce::AudioParameterFloat> ("DECAY", "Decay", juce::NormalisableRange<float>(0.001f, 5.0f, 0.001f, 0.5f), 0.1f));
-    layout.add (std::make_unique<juce::AudioParameterFloat> ("SUSTAIN", "Sustain", juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 1.0f));
-    layout.add (std::make_unique<juce::AudioParameterFloat> ("RELEASE", "Release", juce::NormalisableRange<float>(0.001f, 5.0f, 0.001f, 0.5f), 0.1f));
+    juce::StringArray waveTypes = { "Sine", "Triangle", "Square", "Sawtooth", "Pulse" };
+    for (int i = 1; i <= 7; ++i)
+    {
+        juce::String id = juce::String (i);
+        layout.add (std::make_unique<juce::AudioParameterChoice> ("OSC" + id + "WAVETYPE", "Osc " + id + " Wave Type", waveTypes, 3));
+        layout.add (std::make_unique<juce::AudioParameterFloat> ("OSC" + id + "MIX",    "Osc " + id + " Mix",    0.0f, 1.0f, i == 1 ? 1.0f : 0.0f));
+        layout.add (std::make_unique<juce::AudioParameterFloat> ("OSC" + id + "SPREAD", "Osc " + id + " Spread", -1.0f, 1.0f, 0.0f));
+        if (i > 1)
+            layout.add (std::make_unique<juce::AudioParameterFloat> ("OSC" + id + "DETUNE", "Osc " + id + " Detune", -100.0f, 100.0f, 0.0f));
+    }
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> ("FILTERCUTOFF", "Cutoff", juce::NormalisableRange<float> (20.0f, 20000.0f, 1.0f, 0.3f), 20000.0f));
+    layout.add (std::make_unique<juce::AudioParameterFloat> ("FILTERRES", "Resonance", juce::NormalisableRange<float> (0.1f, 1.0f, 0.01f), 0.1f));
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> ("ATTACK",  "Attack",  juce::NormalisableRange<float> (0.001f, 5.0f, 0.001f, 0.5f), 0.1f));
+    layout.add (std::make_unique<juce::AudioParameterFloat> ("DECAY",   "Decay",   juce::NormalisableRange<float> (0.001f, 5.0f, 0.001f, 0.5f), 0.1f));
+    layout.add (std::make_unique<juce::AudioParameterFloat> ("SUSTAIN", "Sustain", juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 1.0f));
+    layout.add (std::make_unique<juce::AudioParameterFloat> ("RELEASE", "Release", juce::NormalisableRange<float> (0.001f, 5.0f, 0.001f, 0.5f), 0.1f));
 
     return layout;
 }
@@ -118,13 +127,12 @@ void PluginProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     // initialisation that you need..
     juce::ignoreUnused (samplesPerBlock);
     synth.setCurrentPlaybackSampleRate (sampleRate);
-    scopeFifo.prepare (juce::jmax (1, getTotalNumOutputChannels()));
-    osc1ScopeFifo.prepare (1);
-    osc2ScopeFifo.prepare (1);
-    osc3ScopeFifo.prepare (1);
-    osc1ScopeBuffer.setSize (1, samplesPerBlock);
-    osc2ScopeBuffer.setSize (1, samplesPerBlock);
-    osc3ScopeBuffer.setSize (1, samplesPerBlock);
+    scopeFifo.prepare (juce::jmax (2, getTotalNumOutputChannels()));
+    for (int i = 0; i < 7; ++i)
+    {
+        oscScopeFifos[i]->prepare (2);
+        oscScopeBuffers[i].setSize (2, samplesPerBlock);
+    }
 
     juce::dsp::ProcessSpec spec;
     spec.sampleRate = sampleRate;
@@ -177,12 +185,15 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         buffer.clear (i, 0, buffer.getNumSamples());
 
     // Update voice parameters from APVTS
-    auto osc1WaveType = apvts.getRawParameterValue ("OSC1WAVETYPE")->load();
-    auto osc2WaveType = apvts.getRawParameterValue ("OSC2WAVETYPE")->load();
-    auto osc3WaveType = apvts.getRawParameterValue ("OSC3WAVETYPE")->load();
-    auto osc1Mix = apvts.getRawParameterValue ("OSC1MIX")->load();
-    auto osc2Mix = apvts.getRawParameterValue ("OSC2MIX")->load();
-    auto osc3Mix = apvts.getRawParameterValue ("OSC3MIX")->load();
+    float oscWaveType[7], oscMix[7], oscDetune[7], oscSpread[7];
+    for (int i = 0; i < 7; ++i)
+    {
+        juce::String idStr = juce::String (i + 1);
+        oscWaveType[i] = apvts.getRawParameterValue ("OSC" + idStr + "WAVETYPE")->load();
+        oscMix[i] = apvts.getRawParameterValue ("OSC" + idStr + "MIX")->load();
+        oscSpread[i] = apvts.getRawParameterValue ("OSC" + idStr + "SPREAD")->load();
+        oscDetune[i] = (i > 0) ? apvts.getRawParameterValue ("OSC" + idStr + "DETUNE")->load() : 0.0f;
+    }
 
     auto attack = apvts.getRawParameterValue ("ATTACK")->load();
     auto decay = apvts.getRawParameterValue ("DECAY")->load();
@@ -193,9 +204,8 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     {
         if (auto voice = dynamic_cast<SynthVoice*> (synth.getVoice (i)))
         {
-            voice->setOsc1Parameters (static_cast<int> (osc1WaveType), osc1Mix);
-            voice->setOsc2Parameters (static_cast<int> (osc2WaveType), osc2Mix);
-            voice->setOsc3Parameters (static_cast<int> (osc3WaveType), osc3Mix);
+            for (int osc = 0; osc < 7; ++osc)
+                voice->setOscParameters (osc, static_cast<int> (oscWaveType[osc]), oscMix[osc], oscDetune[osc], oscSpread[osc]);
             voice->setAdsrParameters (attack, decay, sustain, release);
         }
     }
@@ -203,24 +213,25 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     // Process the keyboard state to generate midi messages from our UI
     keyboardState.processNextMidiBuffer (midiMessages, 0, buffer.getNumSamples(), true);
 
-    // The synth processes the incoming midi messages and renders audio directly
-    // into the buffer we provide.
-    osc1ScopeBuffer.setSize (1, buffer.getNumSamples(), false, false, true);
-    osc2ScopeBuffer.setSize (1, buffer.getNumSamples(), false, false, true);
-    osc3ScopeBuffer.setSize (1, buffer.getNumSamples(), false, false, true);
-    osc1ScopeBuffer.clear();
-    osc2ScopeBuffer.clear();
-    osc3ScopeBuffer.clear();
+    // Resize + clear scope buffers, pass to voices
+    juce::AudioBuffer<float>* buffers[7];
+    for (int i = 0; i < 7; ++i)
+    {
+        oscScopeBuffers[i].setSize (2, buffer.getNumSamples(), false, false, true);
+        oscScopeBuffers[i].clear();
+        buffers[i] = &oscScopeBuffers[i];
+    }
 
     for (int i = 0; i < synth.getNumVoices(); ++i)
         if (auto voice = dynamic_cast<SynthVoice*> (synth.getVoice (i)))
-            voice->setScopeBuffers (&osc1ScopeBuffer, &osc2ScopeBuffer, &osc3ScopeBuffer);
+            voice->setScopeBuffers (buffers);
 
     synth.renderNextBlock (buffer, midiMessages, 0, buffer.getNumSamples());
 
+    juce::AudioBuffer<float>* nullBuffers[7] = { nullptr };
     for (int i = 0; i < synth.getNumVoices(); ++i)
         if (auto voice = dynamic_cast<SynthVoice*> (synth.getVoice (i)))
-            voice->setScopeBuffers (nullptr, nullptr, nullptr);
+            voice->setScopeBuffers (nullBuffers);
 
     auto cutoff = apvts.getRawParameterValue ("FILTERCUTOFF")->load();
     auto res = apvts.getRawParameterValue ("FILTERRES")->load();
@@ -234,7 +245,7 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         if (ch < 2)
         {
             filters[ch].setCutoffFrequency ((float) safeCutoff);
-            filters[ch].setResonance (juce::jmap(res, 0.1f, 1.0f, 0.707f, 5.0f)); // map 0.1-1.0 to reasonable resonance (Q) values
+            filters[ch].setResonance (juce::jmap (res, 0.1f, 1.0f, 0.707f, 5.0f)); // map 0.1-1.0 to reasonable resonance (Q) values
             auto singleChannelBlock = fullBlock.getSingleChannelBlock (ch);
             juce::dsp::ProcessContextReplacing<float> context (singleChannelBlock);
             filters[ch].process (context);
@@ -242,9 +253,8 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     }
 
     scopeFifo.push (buffer);
-    osc1ScopeFifo.push (osc1ScopeBuffer);
-    osc2ScopeFifo.push (osc2ScopeBuffer);
-    osc3ScopeFifo.push (osc3ScopeBuffer);
+    for (int i = 0; i < 7; ++i)
+        oscScopeFifos[i]->push (oscScopeBuffers[i]);
 }
 
 //==============================================================================

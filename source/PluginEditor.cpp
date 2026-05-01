@@ -6,76 +6,73 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     juce::ignoreUnused (processorRef);
 
     addAndMakeVisible (outputVisualiser);
-
     addAndMakeVisible (keyboardComponent);
 
     oscGroup.setText ("");
     addAndMakeVisible (oscGroup);
 
-    osc1TabButton.setRadioGroupId (1);
-    osc1TabButton.setClickingTogglesState (true);
-    osc1TabButton.setToggleState (true, juce::dontSendNotification);
-    osc1TabButton.onClick = [this] { updateOscTabs(); };
-    addAndMakeVisible (osc1TabButton);
+    // Set up 7 tab buttons
+    static const char* tabNames[7] = { "OSC 1", "OSC 2", "OSC 3", "OSC 4", "OSC 5", "OSC 6", "OSC 7" };
+    for (int i = 0; i < 7; ++i)
+    {
+        auto& btn = oscTabButtons[(size_t) i];
+        btn.setButtonText (tabNames[i]);
+        btn.setRadioGroupId (1);
+        btn.setClickingTogglesState (true);
+        btn.setToggleState (i == 0, juce::dontSendNotification);
+        btn.onClick = [this] { updateOscTabs(); };
+        addAndMakeVisible (btn);
+    }
 
-    osc2TabButton.setRadioGroupId (1);
-    osc2TabButton.setClickingTogglesState (true);
-    osc2TabButton.setToggleState (false, juce::dontSendNotification);
-    osc2TabButton.onClick = [this] { updateOscTabs(); };
-    addAndMakeVisible (osc2TabButton);
+    // Set up 7 oscillator controls
+    juce::StringArray waveItems { "Sine", "Triangle", "Square", "Sawtooth", "Pulse" };
+    for (int i = 0; i < 7; ++i)
+    {
+        juce::String idStr = juce::String (i + 1);
 
-    osc3TabButton.setRadioGroupId (1);
-    osc3TabButton.setClickingTogglesState (true);
-    osc3TabButton.setToggleState (false, juce::dontSendNotification);
-    osc3TabButton.onClick = [this] { updateOscTabs(); };
-    addAndMakeVisible (osc3TabButton);
+        // Waveform display
+        addChildComponent (waveformDisplays[i]);
 
-    addChildComponent (waveform1Display);
-    waveform1Selector.addItem ("Sine", 1);
-    waveform1Selector.addItem ("Triangle", 2);
-    waveform1Selector.addItem ("Square", 3);
-    waveform1Selector.addItem ("Sawtooth", 4);
-    waveform1Selector.addItem ("Pulse", 5);
-    waveform1Selector.setSelectedId (1);
-    addChildComponent (waveform1Selector);
+        // Wave selector
+        waveformSelectors[i].addItemList (waveItems, 1);
+        waveformSelectors[i].setSelectedId (4); // default Sawtooth
+        addChildComponent (waveformSelectors[i]);
 
-    osc1MixSlider.setSliderStyle (juce::Slider::LinearHorizontal);
-    osc1MixSlider.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
-    addChildComponent (osc1MixSlider);
+        // Mix slider
+        oscMixSliders[i].setSliderStyle (juce::Slider::LinearHorizontal);
+        oscMixSliders[i].setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
+        addChildComponent (oscMixSliders[i]);
 
-    addChildComponent (waveform2Display);
-    waveform2Selector.addItem ("Sine", 1);
-    waveform2Selector.addItem ("Triangle", 2);
-    waveform2Selector.addItem ("Square", 3);
-    waveform2Selector.addItem ("Sawtooth", 4);
-    waveform2Selector.addItem ("Pulse", 5);
-    waveform2Selector.setSelectedId (2);
-    addChildComponent (waveform2Selector);
+        // Pan slider + label
+        oscPanSliders[i].setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
+        oscPanSliders[i].setTextBoxStyle (juce::Slider::TextBoxBelow, false, 50, 20);
+        addChildComponent (oscPanSliders[i]);
 
-    osc2MixSlider.setSliderStyle (juce::Slider::LinearHorizontal);
-    osc2MixSlider.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
-    addChildComponent (osc2MixSlider);
+        oscPanLabels[i].setText ("Pan", juce::dontSendNotification);
+        oscPanLabels[i].attachToComponent (&oscPanSliders[i], false);
+        oscPanLabels[i].setJustificationType (juce::Justification::centred);
 
-    addChildComponent (waveform3Display);
-    waveform3Selector.addItem ("Sine", 1);
-    waveform3Selector.addItem ("Triangle", 2);
-    waveform3Selector.addItem ("Square", 3);
-    waveform3Selector.addItem ("Sawtooth", 4);
-    waveform3Selector.addItem ("Pulse", 5);
-    waveform3Selector.setSelectedId (3);
-    addChildComponent (waveform3Selector);
+        // Detune slider + label (not for OSC 1)
+        if (i > 0)
+        {
+            oscDetuneSliders[i].setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
+            oscDetuneSliders[i].setTextBoxStyle (juce::Slider::TextBoxBelow, false, 50, 20);
+            addChildComponent (oscDetuneSliders[i]);
 
-    osc3MixSlider.setSliderStyle (juce::Slider::LinearHorizontal);
-    osc3MixSlider.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
-    addChildComponent (osc3MixSlider);
+            oscDetuneLabels[i].setText ("Detune", juce::dontSendNotification);
+            oscDetuneLabels[i].attachToComponent (&oscDetuneSliders[i], false);
+            oscDetuneLabels[i].setJustificationType (juce::Justification::centred);
+        }
 
-    osc1WaveAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (processorRef.apvts, "OSC1WAVETYPE", waveform1Selector);
-    osc2WaveAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (processorRef.apvts, "OSC2WAVETYPE", waveform2Selector);
-    osc3WaveAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (processorRef.apvts, "OSC3WAVETYPE", waveform3Selector);
-    osc1MixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processorRef.apvts, "OSC1MIX", osc1MixSlider);
-    osc2MixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processorRef.apvts, "OSC2MIX", osc2MixSlider);
-    osc3MixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processorRef.apvts, "OSC3MIX", osc3MixSlider);
+        // APVTS attachments
+        oscWaveAttachments[i] = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (processorRef.apvts, "OSC" + idStr + "WAVETYPE", waveformSelectors[i]);
+        oscMixAttachments[i] = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processorRef.apvts, "OSC" + idStr + "MIX", oscMixSliders[i]);
+        oscPanAttachments[i] = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processorRef.apvts, "OSC" + idStr + "SPREAD", oscPanSliders[i]);
+        if (i > 0)
+            oscDetuneAttachments[i] = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processorRef.apvts, "OSC" + idStr + "DETUNE", oscDetuneSliders[i]);
+    }
 
+    // Filter group
     filterGroup.setText ("Filter");
     addAndMakeVisible (filterGroup);
 
@@ -90,6 +87,15 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     cutoffAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processorRef.apvts, "FILTERCUTOFF", cutoffSlider);
     resonanceAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processorRef.apvts, "FILTERRES", resonanceSlider);
 
+    cutoffLabel.setText ("Cutoff", juce::dontSendNotification);
+    cutoffLabel.attachToComponent (&cutoffSlider, false);
+    cutoffLabel.setJustificationType (juce::Justification::centred);
+
+    resonanceLabel.setText ("Res", juce::dontSendNotification);
+    resonanceLabel.attachToComponent (&resonanceSlider, false);
+    resonanceLabel.setJustificationType (juce::Justification::centred);
+
+    // Amp Env group
     ampEnvGroup.setText ("Amp Env");
     addAndMakeVisible (ampEnvGroup);
 
@@ -109,28 +115,30 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     releaseSlider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 40, 20);
     addAndMakeVisible (releaseSlider);
 
+    attackLabel.setText ("A", juce::dontSendNotification);
+    attackLabel.attachToComponent (&attackSlider, false);
+    attackLabel.setJustificationType (juce::Justification::centred);
+
+    decayLabel.setText ("D", juce::dontSendNotification);
+    decayLabel.attachToComponent (&decaySlider, false);
+    decayLabel.setJustificationType (juce::Justification::centred);
+
+    sustainLabel.setText ("S", juce::dontSendNotification);
+    sustainLabel.attachToComponent (&sustainSlider, false);
+    sustainLabel.setJustificationType (juce::Justification::centred);
+
+    releaseLabel.setText ("R", juce::dontSendNotification);
+    releaseLabel.attachToComponent (&releaseSlider, false);
+    releaseLabel.setJustificationType (juce::Justification::centred);
+
     attackAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processorRef.apvts, "ATTACK", attackSlider);
     decayAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processorRef.apvts, "DECAY", decaySlider);
     sustainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processorRef.apvts, "SUSTAIN", sustainSlider);
     releaseAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processorRef.apvts, "RELEASE", releaseSlider);
 
-    // // this chunk of code instantiates and opens the melatonin inspector
-    // if (!inspector)
-    // {
-    //     inspector = std::make_unique<melatonin::Inspector> (*this);
-    //     inspector->onClose = [this]() { inspector.reset(); };
-    // }
-
-    // inspector->setVisible (true);
-
     updateOscTabs();
-
     startTimerHz (30);
-
-    // Make sure that before the constructor has finished, you've set the
-    // editor's size to whatever you need it to be.
-    setSize (800, 400);
-
+    setSize (1000, 600);
     addMouseListener (this, true);
 }
 
@@ -140,21 +148,18 @@ PluginEditor::~PluginEditor()
 
 void PluginEditor::updateOscTabs()
 {
-    bool showOsc1 = osc1TabButton.getToggleState();
-    bool showOsc2 = osc2TabButton.getToggleState();
-    bool showOsc3 = osc3TabButton.getToggleState();
+    for (int i = 0; i < 7; ++i)
+    {
+        bool show = oscTabButtons[i].getToggleState();
 
-    waveform1Display.setVisible (showOsc1);
-    waveform1Selector.setVisible (showOsc1);
-    osc1MixSlider.setVisible (showOsc1);
+        waveformDisplays[i].setVisible (show);
+        waveformSelectors[i].setVisible (show);
+        oscMixSliders[i].setVisible (show);
+        oscPanSliders[i].setVisible (show);
 
-    waveform2Display.setVisible (showOsc2);
-    waveform2Selector.setVisible (showOsc2);
-    osc2MixSlider.setVisible (showOsc2);
-
-    waveform3Display.setVisible (showOsc3);
-    waveform3Selector.setVisible (showOsc3);
-    osc3MixSlider.setVisible (showOsc3);
+        if (i > 0)
+            oscDetuneSliders[i].setVisible (show);
+    }
 }
 
 void PluginEditor::visibilityChanged()
@@ -198,76 +203,89 @@ void PluginEditor::timerCallback()
         outputVisualiser.pushBuffer (tempScopeBuffer);
     }
 
-    if (readScopeBuffer (processorRef.osc1ScopeFifo, 1))
-        waveform1Display.pushBuffer (tempScopeBuffer);
-
-    if (readScopeBuffer (processorRef.osc2ScopeFifo, 1))
-        waveform2Display.pushBuffer (tempScopeBuffer);
-
-    if (readScopeBuffer (processorRef.osc3ScopeFifo, 1))
-        waveform3Display.pushBuffer (tempScopeBuffer);
+    for (int i = 0; i < 7; ++i)
+        if (readScopeBuffer (*processorRef.oscScopeFifos[i], 2))
+            waveformDisplays[i].pushBuffer (tempScopeBuffer);
 }
 
 void PluginEditor::paint (juce::Graphics& g)
 {
-    // (Our component is opaque, so we must completely fill the background with a solid colour)
     g.fillAll (getLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId));
-
     g.setColour (juce::Colours::white);
     g.setFont (16.0f);
 }
 
 void PluginEditor::resized()
 {
-    // layout the positions of your child components here
     auto area = getLocalBounds();
     keyboardComponent.setBounds (area.removeFromBottom (100));
 
-    auto bottomSection = area.removeFromBottom (120);
-
+    auto bottomSection = area.removeFromBottom (240);
     outputVisualiser.setBounds (area.removeFromTop (128));
 
-    auto partWidth = bottomSection.getWidth() / 3;
+    auto partWidth = bottomSection.getWidth() / 2;
 
+    // --- OSC section (left half) ---
     auto oscArea = bottomSection.removeFromLeft (partWidth).reduced (10);
     oscGroup.setBounds (oscArea);
 
-    auto tabsArea = juce::Rectangle<int> (oscArea.getX() + 15, oscArea.getY(), 180, 24);
-    auto tabWidth = tabsArea.getWidth() / 3;
-    osc1TabButton.setBounds (tabsArea.removeFromLeft (tabWidth));
-    osc2TabButton.setBounds (tabsArea.removeFromLeft (tabWidth));
-    osc3TabButton.setBounds (tabsArea);
+    // Tab row – 7 equal buttons across full width
+    auto tabsArea = juce::Rectangle<int> (oscArea.getX() + 15, oscArea.getY(), oscArea.getWidth() - 15, 24);
+    auto tabWidth = tabsArea.getWidth() / 7;
+    for (int i = 0; i < 7; ++i)
+    {
+        if (i < 6)
+            oscTabButtons[i].setBounds (tabsArea.removeFromLeft (tabWidth));
+        else
+            oscTabButtons[i].setBounds (tabsArea); // last tab takes remaining space
+    }
 
     auto oscContent = oscArea.withTop (oscArea.getY() + 24).reduced (10);
 
+    // Detune + Pan knobs at bottom
+    auto detuneBounds = oscContent.removeFromBottom (90);
+    auto detuneSliderBounds = detuneBounds.withSizeKeepingCentre (140, 70).withTrimmedTop (15);
+    auto detuneLeft = detuneSliderBounds.removeFromLeft (70);
+    auto detuneRight = detuneSliderBounds;
+
+    // OSC 1: only Pan
+    oscPanSliders[0].setBounds (detuneRight);
+
+    // OSC 2-7: Detune + Pan
+    for (int i = 1; i < 7; ++i)
+    {
+        oscDetuneSliders[i].setBounds (detuneLeft);
+        oscPanSliders[i].setBounds (detuneRight);
+    }
+
+    // Wave selector + mix slider (right strip)
     auto oscControls = oscContent.removeFromRight (100);
 
     auto selectorBounds = oscControls.removeFromTop (24);
-    waveform1Selector.setBounds (selectorBounds);
-    waveform2Selector.setBounds (selectorBounds);
-    waveform3Selector.setBounds (selectorBounds);
+    for (auto& sel : waveformSelectors)
+        sel.setBounds (selectorBounds);
 
     auto mixBounds = oscControls.removeFromTop (24).withTrimmedTop (4);
-    osc1MixSlider.setBounds (mixBounds);
-    osc2MixSlider.setBounds (mixBounds);
-    osc3MixSlider.setBounds (mixBounds);
+    for (auto& mix : oscMixSliders)
+        mix.setBounds (mixBounds);
 
+    // Waveform display fills remaining space
     auto displayBounds = oscContent.withTrimmedRight (10);
-    waveform1Display.setBounds (displayBounds);
-    waveform2Display.setBounds (displayBounds);
-    waveform3Display.setBounds (displayBounds);
+    for (auto& display : waveformDisplays)
+        display.setBounds (displayBounds);
 
-    auto filterArea = bottomSection.removeFromLeft (partWidth).reduced (10);
+    // --- Right section: Filter + Amp Env stacked ---
+    auto rightArea = bottomSection;
+
+    auto filterArea = rightArea.removeFromTop (rightArea.getHeight() / 2).reduced (10);
     filterGroup.setBounds (filterArea);
-
-    auto filterContent = filterArea.withTop (filterArea.getY() + 15).reduced (10);
+    auto filterContent = filterArea.withTop (filterArea.getY() + 30).reduced (10);
     cutoffSlider.setBounds (filterContent.removeFromLeft (filterContent.getWidth() / 2));
     resonanceSlider.setBounds (filterContent);
 
-    auto envArea = bottomSection.reduced (10);
+    auto envArea = rightArea.reduced (10);
     ampEnvGroup.setBounds (envArea);
-
-    auto envContent = envArea.withTop (envArea.getY() + 15).reduced (10);
+    auto envContent = envArea.withTop (envArea.getY() + 30).reduced (10);
     auto envKnobWidth = envContent.getWidth() / 4;
     attackSlider.setBounds (envContent.removeFromLeft (envKnobWidth));
     decaySlider.setBounds (envContent.removeFromLeft (envKnobWidth));

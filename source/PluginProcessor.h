@@ -77,10 +77,15 @@ public:
         return dynamic_cast<SynthSound*> (sound) != nullptr;
     }
 
-    void setOsc1Parameters (int type, float mix)
+    void setOscParameters (int index, int type, float mix, float detune, float spread)
     {
-        waveformType1 = type;
-        mix1 = mix;
+        if (index >= 0 && index < 7)
+        {
+            waveformType[index] = type;
+            this->mix[index] = mix;
+            this->detune[index] = detune;
+            this->spread[index] = spread;
+        }
     }
 
     void setAdsrParameters (float attack, float decay, float sustain, float release)
@@ -92,37 +97,20 @@ public:
         adsr.setParameters (adsrParams);
     }
 
-    void setOsc2Parameters (int type, float mix)
+    void setScopeBuffers (juce::AudioBuffer<float>* buffers[7])
     {
-        waveformType2 = type;
-        mix2 = mix;
-    }
-
-    void setOsc3Parameters (int type, float mix)
-    {
-        waveformType3 = type;
-        mix3 = mix;
-    }
-
-    void setScopeBuffers (juce::AudioBuffer<float>* osc1BufferToUse, juce::AudioBuffer<float>* osc2BufferToUse, juce::AudioBuffer<float>* osc3BufferToUse)
-    {
-        osc1ScopeBuffer = osc1BufferToUse;
-        osc2ScopeBuffer = osc2BufferToUse;
-        osc3ScopeBuffer = osc3BufferToUse;
+        for (int i = 0; i < 7; ++i)
+            oscScopeBuffer[i] = buffers[i];
     }
 
     void startNote (int midiNoteNumber, float velocity, juce::SynthesiserSound*, int /*currentPitchWheelPosition*/) override
     {
-        currentAngle = 0.0;
+        for (int i = 0; i < 7; ++i)
+            currentAngle[i] = 0.0;
         level = velocity * 0.15;
-
         adsr.setSampleRate (getSampleRate());
         adsr.noteOn();
-
-        auto cyclesPerSecond = juce::MidiMessage::getMidiNoteInHertz (midiNoteNumber);
-        auto cyclesPerSample = cyclesPerSecond / getSampleRate();
-
-        angleDelta = cyclesPerSample * juce::MathConstants<double>::twoPi;
+        currentPitchHz = juce::MidiMessage::getMidiNoteInHertz (midiNoteNumber);
     }
 
     void stopNote (float /*velocity*/, bool allowTailOff) override
@@ -134,7 +122,9 @@ public:
         else
         {
             clearCurrentNote();
-            angleDelta = 0.0;
+            for (int i = 0; i < 7; ++i)
+                angleDelta[i] = 0.0;
+            currentPitchHz = 0.0;
             adsr.reset();
         }
     }
@@ -144,40 +134,53 @@ public:
 
     void renderNextBlock (juce::AudioBuffer<float>& outputBuffer, int startSample, int numSamples) override
     {
-        if (!juce::approximatelyEqual (angleDelta, 0.0))
+        if (currentPitchHz > 0.0)
         {
+            float panL[7], panR[7];
+            for (int i = 0; i < 7; ++i)
+            {
+                auto cyclesPerSample = (currentPitchHz * std::pow (2.0, detune[i] / 100.0)) / getSampleRate();
+                angleDelta[i] = cyclesPerSample * juce::MathConstants<double>::twoPi;
+                panL[i] = std::cos ((spread[i] + 1.0f) * 0.25f * juce::MathConstants<float>::pi);
+                panR[i] = std::sin ((spread[i] + 1.0f) * 0.25f * juce::MathConstants<float>::pi);
+            }
+
             while (--numSamples >= 0)
             {
-                auto sampleValue1 = getWaveformSample (waveformType1, currentAngle);
-                auto sampleValue2 = getWaveformSample (waveformType2, currentAngle);
-                auto sampleValue3 = getWaveformSample (waveformType3, currentAngle);
-
-                float mixedSample = (sampleValue1 * mix1) + (sampleValue2 * mix2) + (sampleValue3 * mix3);
                 auto envelope = (float) (level * adsr.getNextSample());
-                auto osc1Sample = sampleValue1 * envelope;
-                auto osc2Sample = sampleValue2 * envelope;
-                auto osc3Sample = sampleValue3 * envelope;
-                auto currentSample = (mixedSample * envelope);
+                float currentSampleL = 0.0f;
+                float currentSampleR = 0.0f;
 
-                for (auto i = outputBuffer.getNumChannels(); --i >= 0;)
-                    outputBuffer.addSample (i, startSample, currentSample);
+                for (int i = 0; i < 7; ++i)
+                {
+                    auto sampleValue = getWaveformSample (waveformType[i], currentAngle[i]);
+                    auto oscSampleL = sampleValue * mix[i] * envelope * panL[i];
+                    auto oscSampleR = sampleValue * mix[i] * envelope * panR[i];
 
-                if (osc1ScopeBuffer != nullptr)
-                    osc1ScopeBuffer->addSample (0, startSample, osc1Sample);
+                    currentSampleL += oscSampleL;
+                    currentSampleR += oscSampleR;
 
-                if (osc2ScopeBuffer != nullptr)
-                    osc2ScopeBuffer->addSample (0, startSample, osc2Sample);
+                    if (oscScopeBuffer[i] != nullptr && oscScopeBuffer[i]->getNumChannels() > 1)
+                    {
+                        oscScopeBuffer[i]->addSample (0, startSample, oscSampleL);
+                        oscScopeBuffer[i]->addSample (1, startSample, oscSampleR);
+                    }
 
-                if (osc3ScopeBuffer != nullptr)
-                    osc3ScopeBuffer->addSample (0, startSample, osc3Sample);
+                    currentAngle[i] += angleDelta[i];
+                }
 
-                currentAngle += angleDelta;
+                outputBuffer.addSample (0, startSample, currentSampleL);
+                if (outputBuffer.getNumChannels() > 1)
+                    outputBuffer.addSample (1, startSample, currentSampleR);
+
                 ++startSample;
 
                 if (! adsr.isActive())
                 {
                     clearCurrentNote();
-                    angleDelta = 0.0;
+                    for (int i = 0; i < 7; ++i)
+                        angleDelta[i] = 0.0;
+                    currentPitchHz = 0.0;
                     break;
                 }
             }
@@ -208,14 +211,16 @@ private:
         return 0.0f;
     }
 
-    double currentAngle = 0.0, angleDelta = 0.0, level = 0.0;
+    double currentAngle[7] = { 0.0 };
+    double angleDelta[7] = { 0.0 };
+    double currentPitchHz = 0.0, level = 0.0;
     juce::ADSR adsr;
     juce::ADSR::Parameters adsrParams;
-    int waveformType1 = 0, waveformType2 = 0, waveformType3 = 0; // 0: sine, 1: triangle, 2: square, 3: sawtooth, 4: pulse
-    float mix1 = 1.0f, mix2 = 0.0f, mix3 = 0.0f;
-    juce::AudioBuffer<float>* osc1ScopeBuffer = nullptr;
-    juce::AudioBuffer<float>* osc2ScopeBuffer = nullptr;
-    juce::AudioBuffer<float>* osc3ScopeBuffer = nullptr;
+    int waveformType[7] = { 0 };
+    float mix[7] = { 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+    float detune[7] = { 0.0f };
+    float spread[7] = { 0.0f };
+    juce::AudioBuffer<float>* oscScopeBuffer[7] = { nullptr };
 };
 
 //==============================================================================
@@ -255,15 +260,11 @@ public:
     juce::AudioProcessorValueTreeState apvts;
 
     AudioBufferFifo<float> scopeFifo { 48000 };
-    AudioBufferFifo<float> osc1ScopeFifo { 48000 };
-    AudioBufferFifo<float> osc2ScopeFifo { 48000 };
-    AudioBufferFifo<float> osc3ScopeFifo { 48000 };
+    std::unique_ptr<AudioBufferFifo<float>> oscScopeFifos[7];
 
 private:
     juce::Synthesiser synth;
-    juce::AudioBuffer<float> osc1ScopeBuffer;
-    juce::AudioBuffer<float> osc2ScopeBuffer;
-    juce::AudioBuffer<float> osc3ScopeBuffer;
+    juce::AudioBuffer<float> oscScopeBuffers[7];
     juce::dsp::StateVariableTPTFilter<float> filters[2];
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginProcessor)

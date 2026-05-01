@@ -33,6 +33,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParam
     layout.add (std::make_unique<juce::AudioParameterChoice> ("OSC2WAVETYPE", "Osc 2 Wave Type", waveTypes, 0));
     layout.add (std::make_unique<juce::AudioParameterFloat> ("OSC1MIX", "Osc 1 Mix", 0.0f, 1.0f, 1.0f));
     layout.add (std::make_unique<juce::AudioParameterFloat> ("OSC2MIX", "Osc 2 Mix", 0.0f, 1.0f, 0.0f));
+    layout.add (std::make_unique<juce::AudioParameterFloat> ("FILTERCUTOFF", "Cutoff", juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 0.3f), 20000.0f));
+    layout.add (std::make_unique<juce::AudioParameterFloat> ("FILTERRES", "Resonance", juce::NormalisableRange<float>(0.1f, 1.0f, 0.01f), 0.1f));
     return layout;
 }
 
@@ -113,6 +115,16 @@ void PluginProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     osc2ScopeFifo.prepare (1);
     osc1ScopeBuffer.setSize (1, samplesPerBlock);
     osc2ScopeBuffer.setSize (1, samplesPerBlock);
+
+    juce::dsp::ProcessSpec spec;
+    spec.sampleRate = sampleRate;
+    spec.maximumBlockSize = samplesPerBlock;
+    spec.numChannels = 1;
+    for (auto& f : filters)
+    {
+        f.prepare (spec);
+        f.setType (juce::dsp::StateVariableTPTFilterType::lowpass);
+    }
 }
 
 void PluginProcessor::releaseResources()
@@ -188,6 +200,25 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     for (int i = 0; i < synth.getNumVoices(); ++i)
         if (auto voice = dynamic_cast<SynthVoice*> (synth.getVoice (i)))
             voice->setScopeBuffers (nullptr, nullptr);
+
+    auto cutoff = apvts.getRawParameterValue ("FILTERCUTOFF")->load();
+    auto res = apvts.getRawParameterValue ("FILTERRES")->load();
+
+    auto nyquist = getSampleRate() > 0.0 ? getSampleRate() * 0.5 : 22050.0;
+    auto safeCutoff = juce::jlimit (20.0, nyquist - 1.0, (double) cutoff);
+
+    juce::dsp::AudioBlock<float> fullBlock (buffer);
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+    {
+        if (ch < 2)
+        {
+            filters[ch].setCutoffFrequency ((float) safeCutoff);
+            filters[ch].setResonance (juce::jmap(res, 0.1f, 1.0f, 0.707f, 5.0f)); // map 0.1-1.0 to reasonable resonance (Q) values
+            auto singleChannelBlock = fullBlock.getSingleChannelBlock (ch);
+            juce::dsp::ProcessContextReplacing<float> context (singleChannelBlock);
+            filters[ch].process (context);
+        }
+    }
 
     scopeFifo.push (buffer);
     osc1ScopeFifo.push (osc1ScopeBuffer);

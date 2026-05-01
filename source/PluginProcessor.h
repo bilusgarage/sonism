@@ -1,6 +1,7 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_dsp/juce_dsp.h>
 
 #if (MSVC)
     #include "ipps.h"
@@ -239,6 +240,7 @@ private:
     juce::Synthesiser synth;
     juce::AudioBuffer<float> osc1ScopeBuffer;
     juce::AudioBuffer<float> osc2ScopeBuffer;
+    juce::dsp::StateVariableTPTFilter<float> filters[2];
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginProcessor)
 };

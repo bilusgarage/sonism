@@ -61,7 +61,7 @@ add_subdirectory(modules/clap-juce-extensions EXCLUDE_FROM_ALL)
 # juce_add_module(modules/my_module)
 
 # This adds the melatonin inspector module
-add_subdirectory (modules/melatonin_inspector)
+# add_subdirectory (modules/melatonin_inspector)
 
 # See `docs/CMake API.md` in the JUCE repo for all config options
 juce_add_plugin("${PROJECT_NAME}"
@@ -85,6 +85,7 @@ juce_add_plugin("${PROJECT_NAME}"
     # Note: this must have at least one upper-case character
     PLUGIN_CODE S0NI
     FORMATS "${FORMATS}"
+    IS_SYNTH TRUE
 
     # The name of your final executable
     # This is how it's listed in the DAW
@@ -146,7 +147,7 @@ target_compile_definitions(SharedCode
 target_link_libraries(SharedCode
     INTERFACE
     Assets
-    melatonin_inspector
+    #melatonin_inspector
     juce_audio_utils
     juce_audio_processors
     juce_dsp

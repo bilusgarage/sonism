@@ -2,10 +2,10 @@
 
 #include "BinaryData.h"
 #include "PluginProcessor.h"
-#include "melatonin_inspector/melatonin_inspector.h"
+//#include "melatonin_inspector/melatonin_inspector.h"
 #include <juce_audio_utils/juce_audio_utils.h>
-#include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_dsp/juce_dsp.h>
+#include <juce_gui_basics/juce_gui_basics.h>
 
 //==============================================================================
 class SpectrumDisplayComponent : public juce::Component
@@ -37,7 +37,7 @@ public:
         {
             if (fifoIndex == fftSize)
             {
-                if (! nextFFTBlockReady)
+                if (!nextFFTBlockReady)
                 {
                     juce::zeromem (fftData, sizeof (fftData));
                     memcpy (fftData, fifo, sizeof (fifo));
@@ -58,8 +58,11 @@ public:
                 auto skewedProportionX = 1.0f - std::exp (std::log (1.0f - (float) i / (float) scopeSize) * 0.2f);
                 auto fftDataIndex = juce::jlimit (0, fftSize / 2, (int) (skewedProportionX * (float) fftSize * 0.5f));
                 auto level = juce::jmap (juce::Decibels::gainToDecibels (fftData[fftDataIndex])
-                                                           - juce::Decibels::gainToDecibels ((float) fftSize),
-                                         mindB, maxdB, 0.0f, 1.0f);
+                                             - juce::Decibels::gainToDecibels ((float) fftSize),
+                    mindB,
+                    maxdB,
+                    0.0f,
+                    1.0f);
 
                 scopeData[i] = level;
             }
@@ -103,11 +106,11 @@ public:
         {
             auto y = juce::jmap (db, mindB, maxdB, bounds.getBottom(), bounds.getY());
             g.drawHorizontalLine (juce::roundToInt (y), bounds.getX(), bounds.getRight());
-            
-            float yOffset = (db >= maxdB - 0.1f) ? 2.0f : -12.0f; 
-            g.drawText (juce::String ((int) db) + " dB", 
-                        juce::Rectangle<float>(bounds.getRight() - 40, y + yOffset, 40, 10), 
-                        juce::Justification::topRight);
+
+            float yOffset = (db >= maxdB - 0.1f) ? 2.0f : -12.0f;
+            g.drawText (juce::String ((int) db) + " dB",
+                juce::Rectangle<float> (bounds.getRight() - 40, y + yOffset, 40, 10),
+                juce::Justification::topRight);
         }
 
         // draw x-axis (frequency)
@@ -117,7 +120,8 @@ public:
             for (auto f : freqs)
             {
                 auto nyquist = sampleRate / 2.0;
-                if (f > nyquist) continue;
+                if (f > nyquist)
+                    continue;
 
                 auto s = (float) f / (float) nyquist;
                 auto proportion = 1.0f - std::pow (1.0f - s, 5.0f);
@@ -126,30 +130,32 @@ public:
                 g.drawVerticalLine (juce::roundToInt (x), bounds.getY(), bounds.getBottom());
 
                 juce::String label;
-                if (f >= 1000) label = juce::String (f / 1000, 0) + "k";
-                else label = juce::String (f, 0);
+                if (f >= 1000)
+                    label = juce::String (f / 1000, 0) + "k";
+                else
+                    label = juce::String (f, 0);
 
-                g.drawText (label, 
-                            juce::Rectangle<float>(x + 2, bounds.getBottom() - 12, 30, 10), 
-                            juce::Justification::bottomLeft);
+                g.drawText (label,
+                    juce::Rectangle<float> (x + 2, bounds.getBottom() - 12, 30, 10),
+                    juce::Justification::bottomLeft);
             }
         }
     }
 
 private:
     static constexpr auto fftOrder = 11;
-    static constexpr auto fftSize  = 1 << fftOrder;
+    static constexpr auto fftSize = 1 << fftOrder;
 
     juce::dsp::FFT forwardFFT;
     juce::dsp::WindowingFunction<float> window;
 
-    float fifo [fftSize];
-    float fftData [fftSize * 2];
+    float fifo[fftSize];
+    float fftData[fftSize * 2];
     int fifoIndex = 0;
     bool nextFFTBlockReady = false;
 
     static constexpr auto scopeSize = 512;
-    float scopeData [scopeSize];
+    float scopeData[scopeSize];
 
     double sampleRate = 44100.0;
     static constexpr float mindB = -100.0f;
@@ -230,28 +236,40 @@ public:
     void timerCallback() override;
 
 private:
+    void updateOscTabs();
+
     // This reference is provided as a quick way for your editor to
     // access the processor object that created it.
     PluginProcessor& processorRef;
-    std::unique_ptr<melatonin::Inspector> inspector;
+    //std::unique_ptr<melatonin::Inspector> inspector;
 
     SpectrumDisplayComponent outputVisualiser;
     juce::AudioBuffer<float> tempScopeBuffer;
 
     juce::MidiKeyboardComponent keyboardComponent;
-    juce::GroupComponent osc1Group;
+
+    juce::GroupComponent oscGroup;
+    juce::TextButton osc1TabButton { "OSC 1" };
+    juce::TextButton osc2TabButton { "OSC 2" };
+
     WaveformDisplayComponent waveform1Display;
     juce::ComboBox waveform1Selector;
     juce::Slider osc1MixSlider;
-    juce::GroupComponent osc2Group;
+
     WaveformDisplayComponent waveform2Display;
     juce::ComboBox waveform2Selector;
     juce::Slider osc2MixSlider;
+
+    juce::GroupComponent filterGroup;
+    juce::Slider cutoffSlider;
+    juce::Slider resonanceSlider;
 
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> osc1WaveAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> osc2WaveAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> osc1MixAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> osc2MixAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> cutoffAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> resonanceAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginEditor)
 };

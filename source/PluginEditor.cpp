@@ -9,49 +9,76 @@ PluginEditor::PluginEditor (PluginProcessor& p)
 
     addAndMakeVisible (keyboardComponent);
 
-    osc1Group.setText ("OSC 1");
-    addAndMakeVisible (osc1Group);
-    addAndMakeVisible (waveform1Display);
+    oscGroup.setText ("");
+    addAndMakeVisible (oscGroup);
+
+    osc1TabButton.setRadioGroupId (1);
+    osc1TabButton.setClickingTogglesState (true);
+    osc1TabButton.setToggleState (true, juce::dontSendNotification);
+    osc1TabButton.onClick = [this] { updateOscTabs(); };
+    addAndMakeVisible (osc1TabButton);
+
+    osc2TabButton.setRadioGroupId (1);
+    osc2TabButton.setClickingTogglesState (true);
+    osc2TabButton.setToggleState (false, juce::dontSendNotification);
+    osc2TabButton.onClick = [this] { updateOscTabs(); };
+    addAndMakeVisible (osc2TabButton);
+
+    addChildComponent (waveform1Display);
     waveform1Selector.addItem ("Sine", 1);
     waveform1Selector.addItem ("Triangle", 2);
     waveform1Selector.addItem ("Square", 3);
     waveform1Selector.addItem ("Sawtooth", 4);
     waveform1Selector.addItem ("Pulse", 5);
     waveform1Selector.setSelectedId (1);
-    addAndMakeVisible (waveform1Selector);
+    addChildComponent (waveform1Selector);
 
     osc1MixSlider.setSliderStyle (juce::Slider::LinearHorizontal);
     osc1MixSlider.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
-    addAndMakeVisible (osc1MixSlider);
+    addChildComponent (osc1MixSlider);
 
-    osc2Group.setText ("OSC 2");
-    addAndMakeVisible (osc2Group);
-    addAndMakeVisible (waveform2Display);
+    addChildComponent (waveform2Display);
     waveform2Selector.addItem ("Sine", 1);
     waveform2Selector.addItem ("Triangle", 2);
     waveform2Selector.addItem ("Square", 3);
     waveform2Selector.addItem ("Sawtooth", 4);
     waveform2Selector.addItem ("Pulse", 5);
     waveform2Selector.setSelectedId (2);
-    addAndMakeVisible (waveform2Selector);
+    addChildComponent (waveform2Selector);
 
     osc2MixSlider.setSliderStyle (juce::Slider::LinearHorizontal);
     osc2MixSlider.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
-    addAndMakeVisible (osc2MixSlider);
+    addChildComponent (osc2MixSlider);
 
     osc1WaveAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (processorRef.apvts, "OSC1WAVETYPE", waveform1Selector);
     osc2WaveAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (processorRef.apvts, "OSC2WAVETYPE", waveform2Selector);
     osc1MixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processorRef.apvts, "OSC1MIX", osc1MixSlider);
     osc2MixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processorRef.apvts, "OSC2MIX", osc2MixSlider);
 
-    // // this chunk of code instantiates and opens the melatonin inspector
-    if (!inspector)
-    {
-        inspector = std::make_unique<melatonin::Inspector> (*this);
-        inspector->onClose = [this]() { inspector.reset(); };
-    }
+    filterGroup.setText ("Filter");
+    addAndMakeVisible (filterGroup);
 
-    inspector->setVisible (true);
+    cutoffSlider.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
+    cutoffSlider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 50, 20);
+    addAndMakeVisible (cutoffSlider);
+
+    resonanceSlider.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
+    resonanceSlider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 50, 20);
+    addAndMakeVisible (resonanceSlider);
+
+    cutoffAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processorRef.apvts, "FILTERCUTOFF", cutoffSlider);
+    resonanceAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processorRef.apvts, "FILTERRES", resonanceSlider);
+
+    // // this chunk of code instantiates and opens the melatonin inspector
+    // if (!inspector)
+    // {
+    //     inspector = std::make_unique<melatonin::Inspector> (*this);
+    //     inspector->onClose = [this]() { inspector.reset(); };
+    // }
+
+    // inspector->setVisible (true);
+
+    updateOscTabs();
 
     startTimerHz (30);
 
@@ -62,6 +89,19 @@ PluginEditor::PluginEditor (PluginProcessor& p)
 
 PluginEditor::~PluginEditor()
 {
+}
+
+void PluginEditor::updateOscTabs()
+{
+    bool showOsc1 = osc1TabButton.getToggleState();
+
+    waveform1Display.setVisible (showOsc1);
+    waveform1Selector.setVisible (showOsc1);
+    osc1MixSlider.setVisible (showOsc1);
+
+    waveform2Display.setVisible (!showOsc1);
+    waveform2Selector.setVisible (!showOsc1);
+    osc2MixSlider.setVisible (!showOsc1);
 }
 
 void PluginEditor::visibilityChanged()
@@ -121,25 +161,37 @@ void PluginEditor::resized()
     auto area = getLocalBounds();
     keyboardComponent.setBounds (area.removeFromBottom (100));
 
-    auto oscArea = area.removeFromBottom (120);
+    auto bottomSection = area.removeFromBottom (120);
 
     outputVisualiser.setBounds (area.removeFromTop (128));
 
-    auto osc1Area = oscArea.removeFromLeft (oscArea.getWidth() / 2).reduced (10);
-    osc1Group.setBounds (osc1Area);
+    auto oscArea = bottomSection.removeFromLeft (bottomSection.getWidth() / 2).reduced (10);
+    oscGroup.setBounds (oscArea);
 
-    auto osc1Content = osc1Area.withTop (osc1Area.getY() + 15).reduced (10);
-    auto osc1Controls = osc1Content.removeFromRight (100);
-    waveform1Selector.setBounds (osc1Controls.removeFromTop (24));
-    osc1MixSlider.setBounds (osc1Controls.removeFromTop (24).withTrimmedTop (4));
-    waveform1Display.setBounds (osc1Content.withTrimmedRight (10));
+    auto tabsArea = juce::Rectangle<int> (oscArea.getX() + 15, oscArea.getY(), 160, 24);
+    osc1TabButton.setBounds (tabsArea.removeFromLeft (tabsArea.getWidth() / 2));
+    osc2TabButton.setBounds (tabsArea);
 
-    auto osc2Area = oscArea.reduced (10);
-    osc2Group.setBounds (osc2Area);
+    auto oscContent = oscArea.withTop (oscArea.getY() + 24).reduced (10);
 
-    auto osc2Content = osc2Area.withTop (osc2Area.getY() + 15).reduced (10);
-    auto osc2Controls = osc2Content.removeFromRight (100);
-    waveform2Selector.setBounds (osc2Controls.removeFromTop (24));
-    osc2MixSlider.setBounds (osc2Controls.removeFromTop (24).withTrimmedTop (4));
-    waveform2Display.setBounds (osc2Content.withTrimmedRight (10));
+    auto oscControls = oscContent.removeFromRight (100);
+
+    auto selectorBounds = oscControls.removeFromTop (24);
+    waveform1Selector.setBounds (selectorBounds);
+    waveform2Selector.setBounds (selectorBounds);
+
+    auto mixBounds = oscControls.removeFromTop (24).withTrimmedTop (4);
+    osc1MixSlider.setBounds (mixBounds);
+    osc2MixSlider.setBounds (mixBounds);
+
+    auto displayBounds = oscContent.withTrimmedRight (10);
+    waveform1Display.setBounds (displayBounds);
+    waveform2Display.setBounds (displayBounds);
+
+    auto filterArea = bottomSection.reduced (10);
+    filterGroup.setBounds (filterArea);
+
+    auto filterContent = filterArea.withTop (filterArea.getY() + 15).reduced (10);
+    cutoffSlider.setBounds (filterContent.removeFromLeft (filterContent.getWidth() / 2));
+    resonanceSlider.setBounds (filterContent);
 }

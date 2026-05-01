@@ -94,7 +94,10 @@ void PluginEditor::timerCallback()
     };
 
     if (readScopeBuffer (processorRef.scopeFifo, processorRef.getTotalNumOutputChannels()))
+    {
+        outputVisualiser.setSampleRate (processorRef.getSampleRate());
         outputVisualiser.pushBuffer (tempScopeBuffer);
+    }
 
     if (readScopeBuffer (processorRef.osc1ScopeFifo, 1))
         waveform1Display.pushBuffer (tempScopeBuffer);

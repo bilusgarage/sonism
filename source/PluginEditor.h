@@ -21,6 +21,11 @@ public:
         juce::zeromem (scopeData, sizeof (scopeData));
     }
 
+    void setSampleRate (double newSampleRate)
+    {
+        sampleRate = newSampleRate;
+    }
+
     void pushBuffer (const juce::AudioBuffer<float>& buffer)
     {
         if (buffer.getNumChannels() == 0)
@@ -48,9 +53,6 @@ public:
             window.multiplyWithWindowingTable (fftData, fftSize);
             forwardFFT.performFrequencyOnlyForwardTransform (fftData);
 
-            auto mindB = -100.0f;
-            auto maxdB =    0.0f;
-
             for (int i = 0; i < scopeSize; ++i)
             {
                 auto skewedProportionX = 1.0f - std::exp (std::log (1.0f - (float) i / (float) scopeSize) * 0.2f);
@@ -72,6 +74,8 @@ public:
         auto bounds = getLocalBounds().toFloat();
         g.fillAll (juce::Colours::black);
 
+        drawScales (g, bounds);
+
         g.setColour (juce::Colours::cyan);
 
         juce::Path p;
@@ -89,6 +93,49 @@ public:
         g.strokePath (p, juce::PathStrokeType (2.0f));
     }
 
+    void drawScales (juce::Graphics& g, juce::Rectangle<float> bounds)
+    {
+        g.setColour (juce::Colours::darkgrey);
+        g.setFont (10.0f);
+
+        // draw y-axis (dB)
+        for (float db = maxdB; db >= mindB; db -= 20.0f)
+        {
+            auto y = juce::jmap (db, mindB, maxdB, bounds.getBottom(), bounds.getY());
+            g.drawHorizontalLine (juce::roundToInt (y), bounds.getX(), bounds.getRight());
+            
+            float yOffset = (db >= maxdB - 0.1f) ? 2.0f : -12.0f; 
+            g.drawText (juce::String ((int) db) + " dB", 
+                        juce::Rectangle<float>(bounds.getRight() - 40, y + yOffset, 40, 10), 
+                        juce::Justification::topRight);
+        }
+
+        // draw x-axis (frequency)
+        if (sampleRate > 0.0)
+        {
+            std::vector<float> freqs = { 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000 };
+            for (auto f : freqs)
+            {
+                auto nyquist = sampleRate / 2.0;
+                if (f > nyquist) continue;
+
+                auto s = (float) f / (float) nyquist;
+                auto proportion = 1.0f - std::pow (1.0f - s, 5.0f);
+                auto x = proportion * bounds.getWidth() + bounds.getX();
+
+                g.drawVerticalLine (juce::roundToInt (x), bounds.getY(), bounds.getBottom());
+
+                juce::String label;
+                if (f >= 1000) label = juce::String (f / 1000, 0) + "k";
+                else label = juce::String (f, 0);
+
+                g.drawText (label, 
+                            juce::Rectangle<float>(x + 2, bounds.getBottom() - 12, 30, 10), 
+                            juce::Justification::bottomLeft);
+            }
+        }
+    }
+
 private:
     static constexpr auto fftOrder = 11;
     static constexpr auto fftSize  = 1 << fftOrder;
@@ -103,6 +150,10 @@ private:
 
     static constexpr auto scopeSize = 512;
     float scopeData [scopeSize];
+
+    double sampleRate = 44100.0;
+    static constexpr float mindB = -100.0f;
+    static constexpr float maxdB = 0.0f;
 };
 
 //==============================================================================

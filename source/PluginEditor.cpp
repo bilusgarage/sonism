@@ -72,6 +72,17 @@ PluginEditor::PluginEditor (PluginProcessor& p)
             oscDetuneAttachments[i] = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processorRef.apvts, "OSC" + idStr + "DETUNE", oscDetuneSliders[i]);
     }
 
+    // Unison Detune knob (global)
+    unisonDetuneSlider.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
+    unisonDetuneSlider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 50, 20);
+    addAndMakeVisible (unisonDetuneSlider);
+
+    unisonDetuneLabel.setText ("Unison", juce::dontSendNotification);
+    unisonDetuneLabel.attachToComponent (&unisonDetuneSlider, false);
+    unisonDetuneLabel.setJustificationType (juce::Justification::centred);
+
+    unisonDetuneAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processorRef.apvts, "UNISONDETUNE", unisonDetuneSlider);
+
     // Filter group
     filterGroup.setText ("Filter");
     addAndMakeVisible (filterGroup);
@@ -242,23 +253,27 @@ void PluginEditor::resized()
 
     auto oscContent = oscArea.withTop (oscArea.getY() + 24).reduced (10);
 
-    // Bottom controls row: wave selector + mix on left, detune + pan knobs on right
+    // Bottom controls row: wave selector + mix on left, detune + pan + unison knobs on right
     auto controlsRow = oscContent.removeFromBottom (90);
 
-    // Right side of controls row: Detune + Pan knobs
-    auto knobsArea = controlsRow.removeFromRight (140);
-    auto knobsBounds = knobsArea.withSizeKeepingCentre (140, 70).withTrimmedTop (15);
+    // Right side of controls row: Detune + Pan + Unison knobs
+    auto knobsArea = controlsRow.removeFromRight (210);
+    auto knobsBounds = knobsArea.withSizeKeepingCentre (210, 70).withTrimmedTop (15);
     auto detuneLeft = knobsBounds.removeFromLeft (70);
-    auto detuneRight = knobsBounds;
+    auto panMiddle = knobsBounds.removeFromLeft (70);
+    auto unisonRight = knobsBounds;
 
-    // OSC 1: only Pan
-    oscPanSliders[0].setBounds (detuneRight);
+    // Unison knob is always visible (global control)
+    unisonDetuneSlider.setBounds (unisonRight);
 
-    // OSC 2-7: Detune + Pan
+    // OSC 1: only Pan + Unison
+    oscPanSliders[0].setBounds (panMiddle);
+
+    // OSC 2-7: Detune + Pan + Unison
     for (int i = 1; i < 7; ++i)
     {
         oscDetuneSliders[i].setBounds (detuneLeft);
-        oscPanSliders[i].setBounds (detuneRight);
+        oscPanSliders[i].setBounds (panMiddle);
     }
 
     // Left side of controls row: Wave selector + Mix slider

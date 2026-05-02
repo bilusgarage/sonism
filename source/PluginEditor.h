@@ -263,6 +263,9 @@ private:
     std::array<juce::Slider, 7> oscPanSliders;
     std::array<juce::Label, 7> oscPanLabels;
 
+    juce::Slider unisonDetuneSlider;
+    juce::Label unisonDetuneLabel;
+
     juce::GroupComponent filterGroup;
     juce::Slider cutoffSlider;
     juce::Slider resonanceSlider;
@@ -290,6 +293,8 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> decayAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> sustainAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> releaseAttachment;
+
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> unisonDetuneAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginEditor)
 };

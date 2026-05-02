@@ -44,6 +44,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParam
             layout.add (std::make_unique<juce::AudioParameterFloat> ("OSC" + id + "DETUNE", "Osc " + id + " Detune", -100.0f, 100.0f, 0.0f));
     }
 
+    layout.add (std::make_unique<juce::AudioParameterFloat> ("UNISONDETUNE", "Unison Detune", juce::NormalisableRange<float> (0.0f, 100.0f, 0.1f), 0.0f));
+
     layout.add (std::make_unique<juce::AudioParameterFloat> ("FILTERCUTOFF", "Cutoff", juce::NormalisableRange<float> (20.0f, 20000.0f, 1.0f, 0.3f), 20000.0f));
     layout.add (std::make_unique<juce::AudioParameterFloat> ("FILTERRES", "Resonance", juce::NormalisableRange<float> (0.1f, 1.0f, 0.01f), 0.1f));
 
@@ -185,6 +187,8 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         buffer.clear (i, 0, buffer.getNumSamples());
 
     // Update voice parameters from APVTS
+    auto unisonDetune = apvts.getRawParameterValue ("UNISONDETUNE")->load();
+
     float oscWaveType[7], oscMix[7], oscDetune[7], oscSpread[7];
     for (int i = 0; i < 7; ++i)
     {
@@ -193,6 +197,15 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         oscMix[i] = apvts.getRawParameterValue ("OSC" + idStr + "MIX")->load();
         oscSpread[i] = apvts.getRawParameterValue ("OSC" + idStr + "SPREAD")->load();
         oscDetune[i] = (i > 0) ? apvts.getRawParameterValue ("OSC" + idStr + "DETUNE")->load() : 0.0f;
+
+        // Apply symmetric unison detune: osc 1 stays centred, oscs 2-7 spread evenly
+        if (i > 0)
+        {
+            // Map osc index 1..6 to spread positions -1..+1
+            float t = (float) (i - 1) / 5.0f;  // 0..1
+            float spread = t * 2.0f - 1.0f;     // -1..+1
+            oscDetune[i] += unisonDetune * spread;
+        }
     }
 
     auto attack = apvts.getRawParameterValue ("ATTACK")->load();

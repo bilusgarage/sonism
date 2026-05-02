@@ -86,6 +86,7 @@ juce_add_plugin("${PROJECT_NAME}"
     PLUGIN_CODE S0NI
     FORMATS "${FORMATS}"
     IS_SYNTH TRUE
+    NEEDS_MIDI_INPUT TRUE
 
     # The name of your final executable
     # This is how it's listed in the DAW

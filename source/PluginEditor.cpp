@@ -83,6 +83,49 @@ PluginEditor::PluginEditor (PluginProcessor& p)
 
     unisonDetuneAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processorRef.apvts, "UNISONDETUNE", unisonDetuneSlider);
 
+    unisonDetuneSlider.onValueChange = [this]
+    {
+        auto amount = (float) unisonDetuneSlider.getValue();
+        for (int i = 1; i < 7; ++i)
+        {
+            // Symmetric spread: osc index 1..6 maps to positions -1..+1
+            float t = (float) (i - 1) / 5.0f;
+            float spread = t * 2.0f - 1.0f;
+            float value = amount * spread;
+
+            juce::String paramId = "OSC" + juce::String (i + 1) + "DETUNE";
+            if (auto* param = processorRef.apvts.getParameter (paramId))
+                param->setValueNotifyingHost (param->convertTo0to1 (value));
+        }
+    };
+
+    // Unison Spread knob (global)
+    unisonSpreadSlider.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
+    unisonSpreadSlider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 50, 20);
+    addAndMakeVisible (unisonSpreadSlider);
+
+    unisonSpreadLabel.setText ("Spread", juce::dontSendNotification);
+    unisonSpreadLabel.attachToComponent (&unisonSpreadSlider, false);
+    unisonSpreadLabel.setJustificationType (juce::Justification::centred);
+
+    unisonSpreadAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processorRef.apvts, "UNISONSPREAD", unisonSpreadSlider);
+
+    unisonSpreadSlider.onValueChange = [this]
+    {
+        auto amount = (float) unisonSpreadSlider.getValue();
+        for (int i = 1; i < 7; ++i)
+        {
+            // Symmetric spread: osc index 1..6 maps to positions -1..+1
+            float t = (float) (i - 1) / 5.0f;
+            float spread = t * 2.0f - 1.0f;
+            float value = amount * spread;
+
+            juce::String paramId = "OSC" + juce::String (i + 1) + "SPREAD";
+            if (auto* param = processorRef.apvts.getParameter (paramId))
+                param->setValueNotifyingHost (param->convertTo0to1 (value));
+        }
+    };
+
     // Filter group
     filterGroup.setText ("Filter");
     addAndMakeVisible (filterGroup);
@@ -256,20 +299,22 @@ void PluginEditor::resized()
     // Bottom controls row: wave selector + mix on left, detune + pan + unison knobs on right
     auto controlsRow = oscContent.removeFromBottom (90);
 
-    // Right side of controls row: Detune + Pan + Unison knobs
-    auto knobsArea = controlsRow.removeFromRight (210);
-    auto knobsBounds = knobsArea.withSizeKeepingCentre (210, 70).withTrimmedTop (15);
+    // Right side of controls row: Detune + Pan + Unison + Spread knobs
+    auto knobsArea = controlsRow.removeFromRight (280);
+    auto knobsBounds = knobsArea.withSizeKeepingCentre (280, 70).withTrimmedTop (15);
     auto detuneLeft = knobsBounds.removeFromLeft (70);
     auto panMiddle = knobsBounds.removeFromLeft (70);
-    auto unisonRight = knobsBounds;
+    auto unisonArea = knobsBounds.removeFromLeft (70);
+    auto spreadArea = knobsBounds;
 
-    // Unison knob is always visible (global control)
-    unisonDetuneSlider.setBounds (unisonRight);
+    // Global knobs are always visible
+    unisonDetuneSlider.setBounds (unisonArea);
+    unisonSpreadSlider.setBounds (spreadArea);
 
-    // OSC 1: only Pan + Unison
+    // OSC 1: only Pan
     oscPanSliders[0].setBounds (panMiddle);
 
-    // OSC 2-7: Detune + Pan + Unison
+    // OSC 2-7: Detune + Pan
     for (int i = 1; i < 7; ++i)
     {
         oscDetuneSliders[i].setBounds (detuneLeft);

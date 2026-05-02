@@ -265,6 +265,8 @@ private:
 
     juce::Slider unisonDetuneSlider;
     juce::Label unisonDetuneLabel;
+    juce::Slider unisonSpreadSlider;
+    juce::Label unisonSpreadLabel;
 
     juce::GroupComponent filterGroup;
     juce::Slider cutoffSlider;
@@ -295,6 +297,7 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> releaseAttachment;
 
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> unisonDetuneAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> unisonSpreadAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginEditor)
 };

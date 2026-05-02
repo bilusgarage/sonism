@@ -38,34 +38,34 @@ juce::AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParam
     {
         juce::String id = juce::String (i);
         layout.add (std::make_unique<juce::AudioParameterChoice> ("OSC" + id + "WAVETYPE", "Osc " + id + " Wave Type", waveTypes, 3));
-        layout.add (std::make_unique<juce::AudioParameterFloat> ("OSC" + id + "MIX", "Osc " + id + " Mix", 0.0f, 1.0f, i == 1 ? 1.0f : 0.0f));
+        layout.add (std::make_unique<juce::AudioParameterFloat> ("OSC" + id + "MIX", "Osc " + id + " Mix", 0.0f, 1.0f, i == 1 ? 1.0f : 0.5f));
         layout.add (std::make_unique<juce::AudioParameterFloat> ("OSC" + id + "SPREAD", "Osc " + id + " Spread", -1.0f, 1.0f, 0.0f));
         if (i > 1)
             layout.add (std::make_unique<juce::AudioParameterFloat> ("OSC" + id + "DETUNE", "Osc " + id + " Detune", -100.0f, 100.0f, 0.0f));
     }
 
-    layout.add (std::make_unique<juce::AudioParameterFloat> ("UNISONDETUNE", "Unison Detune", juce::NormalisableRange<float> (0.0f, 100.0f, 0.1f), 0.0f));
-    layout.add (std::make_unique<juce::AudioParameterFloat> ("UNISONSPREAD", "Unison Spread", juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.0f));
+    layout.add (std::make_unique<juce::AudioParameterFloat> ("UNISONDETUNE", "Unison Detune", juce::NormalisableRange<float> (0.0f, 100.0f, 0.1f), 0.3f));
+    layout.add (std::make_unique<juce::AudioParameterFloat> ("UNISONSPREAD", "Unison Spread", juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.85f));
 
     layout.add (std::make_unique<juce::AudioParameterFloat> ("FILTERCUTOFF", "Cutoff", juce::NormalisableRange<float> (20.0f, 20000.0f, 1.0f, 0.3f), 20000.0f));
     layout.add (std::make_unique<juce::AudioParameterFloat> ("FILTERRES", "Resonance", juce::NormalisableRange<float> (0.1f, 1.0f, 0.01f), 0.1f));
 
-    layout.add (std::make_unique<juce::AudioParameterFloat> ("ATTACK", "Attack", juce::NormalisableRange<float> (0.001f, 5.0f, 0.001f, 0.5f), 0.1f));
-    layout.add (std::make_unique<juce::AudioParameterFloat> ("DECAY", "Decay", juce::NormalisableRange<float> (0.001f, 5.0f, 0.001f, 0.5f), 0.1f));
+    layout.add (std::make_unique<juce::AudioParameterFloat> ("ATTACK", "Attack", juce::NormalisableRange<float> (0.001f, 5.0f, 0.001f, 0.5f), 0.100f));
+    layout.add (std::make_unique<juce::AudioParameterFloat> ("DECAY", "Decay", juce::NormalisableRange<float> (0.001f, 5.0f, 0.001f, 0.5f), 0.100f));
     layout.add (std::make_unique<juce::AudioParameterFloat> ("SUSTAIN", "Sustain", juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 1.0f));
-    layout.add (std::make_unique<juce::AudioParameterFloat> ("RELEASE", "Release", juce::NormalisableRange<float> (0.001f, 5.0f, 0.001f, 0.5f), 0.1f));
+    layout.add (std::make_unique<juce::AudioParameterFloat> ("RELEASE", "Release", juce::NormalisableRange<float> (0.001f, 5.0f, 0.001f, 0.5f), 0.700f));
 
     // LFO 1 (Osc 2-4)
-    layout.add (std::make_unique<juce::AudioParameterFloat> ("LFO1RATE", "LFO 1 Rate", juce::NormalisableRange<float>(0.1f, 20.0f, 0.01f, 0.5f), 1.0f));
-    layout.add (std::make_unique<juce::AudioParameterFloat> ("LFO1AMOUNT", "LFO 1 Amount", 0.0f, 1.0f, 0.5f));
-    layout.add (std::make_unique<juce::AudioParameterFloat> ("LFO1PHASE", "LFO 1 Phase", 0.0f, 1.0f, 0.0f));
-    layout.add (std::make_unique<juce::AudioParameterChoice> ("LFO1WAVETYPE", "LFO 1 Wave Type", waveTypes, 0));
+    layout.add (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID ("LFO1RATE", 1), "LFO 1 Rate", juce::NormalisableRange<float>(0.1f, 20.0f, 0.01f, 0.5f), 0.10f));
+    layout.add (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID ("LFO1AMOUNT", 1), "LFO 1 Amount", 0.0f, 1.0f, 0.01f));
+    layout.add (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID ("LFO1PHASE", 1), "LFO 1 Phase", 0.0f, 1.0f, 0.50f));
+    layout.add (std::make_unique<juce::AudioParameterChoice> (juce::ParameterID ("LFO1WAVETYPE", 1), "LFO 1 Wave Type", waveTypes, 0));
 
     // LFO 2 (Osc 5-7)
-    layout.add (std::make_unique<juce::AudioParameterFloat> ("LFO2RATE", "LFO 2 Rate", juce::NormalisableRange<float>(0.1f, 20.0f, 0.01f, 0.5f), 1.0f));
-    layout.add (std::make_unique<juce::AudioParameterFloat> ("LFO2AMOUNT", "LFO 2 Amount", 0.0f, 1.0f, 0.5f));
-    layout.add (std::make_unique<juce::AudioParameterFloat> ("LFO2PHASE", "LFO 2 Phase", 0.0f, 1.0f, 0.0f));
-    layout.add (std::make_unique<juce::AudioParameterChoice> ("LFO2WAVETYPE", "LFO 2 Wave Type", waveTypes, 0));
+    layout.add (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID ("LFO2RATE", 1), "LFO 2 Rate", juce::NormalisableRange<float>(0.1f, 20.0f, 0.01f, 0.5f), 2.00f));
+    layout.add (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID ("LFO2AMOUNT", 1), "LFO 2 Amount", 0.0f, 1.0f, 0.05f));
+    layout.add (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID ("LFO2PHASE", 1), "LFO 2 Phase", 0.0f, 1.0f, 0.00f));
+    layout.add (std::make_unique<juce::AudioParameterChoice> (juce::ParameterID ("LFO2WAVETYPE", 1), "LFO 2 Wave Type", waveTypes, 1));
 
     return layout;
 }

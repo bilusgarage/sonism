@@ -172,6 +172,12 @@ public:
         samples.resize (512, 0.0f);
     }
 
+    void setColour (juce::Colour newColour)
+    {
+        waveColour = newColour;
+        repaint();
+    }
+
     void pushBuffer (const juce::AudioBuffer<float>& buffer)
     {
         if (buffer.getNumChannels() == 0)
@@ -201,7 +207,7 @@ public:
         auto centerY = bounds.getCentreY();
         g.drawHorizontalLine (juce::roundToInt (centerY), bounds.getX(), bounds.getRight());
 
-        g.setColour (juce::Colours::cyan);
+        g.setColour (waveColour);
         juce::Path p;
 
         for (size_t i = 0; i < samples.size(); ++i)
@@ -223,6 +229,7 @@ private:
     std::vector<float> samples;
     int writePosition = 0;
     float displayGain = 1.0f;
+    juce::Colour waveColour = juce::Colours::cyan;
 };
 
 //==============================================================================
@@ -239,6 +246,12 @@ public:
         repaint();
     }
 
+    void setColour (juce::Colour newColour)
+    {
+        waveColour = newColour;
+        repaint();
+    }
+
     void paint (juce::Graphics& g) override
     {
         auto bounds = getLocalBounds().toFloat();
@@ -249,7 +262,7 @@ public:
         auto centerY = bounds.getCentreY();
         g.drawHorizontalLine (juce::roundToInt (centerY), bounds.getX(), bounds.getRight());
 
-        g.setColour (juce::Colours::yellow);
+        g.setColour (waveColour);
         juce::Path p;
         int numPoints = 200;
         
@@ -283,9 +296,10 @@ public:
     }
 
 private:
-    int currentWaveform = 0;
+    int currentWaveform = 0; // 0=Sine, 1=Saw, 2=Tri
     float currentPhase = 0.0f;
     float currentAmount = 1.0f;
+    juce::Colour waveColour = juce::Colours::yellow;
 };
 
 //==============================================================================
@@ -382,16 +396,16 @@ private:
     juce::TextButton lfoTab2 { "LFO 5-7" };
     
     std::array<juce::ShapeButton, 2> lfoSineButton {{
-        juce::ShapeButton { "Sine", juce::Colours::yellow, juce::Colours::yellow.withAlpha(0.5f), juce::Colours::yellow },
-        juce::ShapeButton { "Sine", juce::Colours::yellow, juce::Colours::yellow.withAlpha(0.5f), juce::Colours::yellow }
+        juce::ShapeButton { "Sine", juce::Colours::darkgrey, juce::Colours::purple.withAlpha(0.5f), juce::Colours::purple },
+        juce::ShapeButton { "Sine", juce::Colours::darkgrey, juce::Colours::green.withAlpha(0.5f), juce::Colours::green }
     }};
     std::array<juce::ShapeButton, 2> lfoSawButton {{
-        juce::ShapeButton { "Saw", juce::Colours::yellow, juce::Colours::yellow.withAlpha(0.5f), juce::Colours::yellow },
-        juce::ShapeButton { "Saw", juce::Colours::yellow, juce::Colours::yellow.withAlpha(0.5f), juce::Colours::yellow }
+        juce::ShapeButton { "Saw", juce::Colours::darkgrey, juce::Colours::purple.withAlpha(0.5f), juce::Colours::purple },
+        juce::ShapeButton { "Saw", juce::Colours::darkgrey, juce::Colours::green.withAlpha(0.5f), juce::Colours::green }
     }};
     std::array<juce::ShapeButton, 2> lfoTriangleButton {{
-        juce::ShapeButton { "Triangle", juce::Colours::yellow, juce::Colours::yellow.withAlpha(0.5f), juce::Colours::yellow },
-        juce::ShapeButton { "Triangle", juce::Colours::yellow, juce::Colours::yellow.withAlpha(0.5f), juce::Colours::yellow }
+        juce::ShapeButton { "Triangle", juce::Colours::darkgrey, juce::Colours::purple.withAlpha(0.5f), juce::Colours::purple },
+        juce::ShapeButton { "Triangle", juce::Colours::darkgrey, juce::Colours::green.withAlpha(0.5f), juce::Colours::green }
     }};
     
     std::array<juce::TextButton, 2> lfoSyncButton {{ juce::TextButton { "Hz" }, juce::TextButton { "Hz" } }};
@@ -410,6 +424,12 @@ private:
     EffectTileComponent reverbTile { "REVERB" };
     EffectTileComponent delayTile { "DELAY" };
     EffectTileComponent compressorTile { "COMPRESSOR" };
+
+    // Preset Header Section
+    juce::Label pluginNameLabel;
+    juce::TextButton presetButton { "Default Preset" };
+    juce::TextButton presetLeftButton { "<" };
+    juce::TextButton presetRightButton { ">" };
 
     std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>, 7> oscWaveAttachments;
     std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>, 7> oscMixAttachments;

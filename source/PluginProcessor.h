@@ -119,6 +119,8 @@ public:
     {
         for (int i = 0; i < 7; ++i)
             currentAngle[i] = 0.0;
+        lfo1Angle = 0.0f;
+        lfo2Angle = 0.0f;
         level = velocity * 0.15;
         adsr.setSampleRate (getSampleRate());
         adsr.noteOn();

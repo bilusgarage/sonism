@@ -39,6 +39,8 @@ PluginEditor::PluginEditor (PluginProcessor& p)
         juce::String idStr = juce::String (i + 1);
 
         // Waveform display
+        if (i >= 1 && i <= 3) waveformDisplays[i].setColour (juce::Colours::purple);
+        else if (i >= 4 && i <= 6) waveformDisplays[i].setColour (juce::Colours::green);
         addChildComponent (waveformDisplays[i]);
 
         // Wave selector
@@ -95,10 +97,12 @@ PluginEditor::PluginEditor (PluginProcessor& p)
         auto amount = (float) unisonDetuneSlider.getValue();
         for (int i = 1; i < 7; ++i)
         {
-            // Symmetric spread: osc index 1..6 maps to positions -1..+1
-            float t = (float) (i - 1) / 5.0f;
-            float spread = t * 2.0f - 1.0f;
-            float value = amount * spread;
+            // Oscillator pairs: 1-2, 3-4, 5-6 (Osc 2-3, 4-5, 6-7)
+            int pairIdx = (i - 1) / 2; // 0, 1, 2
+            float mag = (float)(pairIdx + 1) / 3.0f; // 0.33, 0.66, 1.0
+            float sign = (i % 2 != 0) ? -1.0f : 1.0f; // left/down for odd i, right/up for even i
+            
+            float value = amount * mag * sign;
 
             juce::String paramId = "OSC" + juce::String (i + 1) + "DETUNE";
             if (auto* param = processorRef.apvts.getParameter (paramId))
@@ -121,10 +125,12 @@ PluginEditor::PluginEditor (PluginProcessor& p)
         auto amount = (float) unisonSpreadSlider.getValue();
         for (int i = 1; i < 7; ++i)
         {
-            // Symmetric spread: osc index 1..6 maps to positions -1..+1
-            float t = (float) (i - 1) / 5.0f;
-            float spread = t * 2.0f - 1.0f;
-            float value = amount * spread;
+            // Oscillator pairs: 1-2, 3-4, 5-6 (Osc 2-3, 4-5, 6-7)
+            int pairIdx = (i - 1) / 2; // 0, 1, 2
+            float mag = (float)(pairIdx + 1) / 3.0f; // 0.33, 0.66, 1.0
+            float sign = (i % 2 != 0) ? -1.0f : 1.0f; // left for odd i, right for even i
+            
+            float value = amount * mag * sign;
 
             juce::String paramId = "OSC" + juce::String (i + 1) + "SPREAD";
             if (auto* param = processorRef.apvts.getParameter (paramId))
@@ -202,12 +208,16 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     addAndMakeVisible (lfoTab2);
     lfoTab1.setRadioGroupId (2);
     lfoTab2.setRadioGroupId (2);
+    lfoTab1.setClickingTogglesState (true);
+    lfoTab2.setClickingTogglesState (true);
     lfoTab1.setToggleState (true, juce::dontSendNotification);
     lfoTab1.setConnectedEdges (juce::Button::ConnectedOnRight);
     lfoTab2.setConnectedEdges (juce::Button::ConnectedOnLeft);
 
     auto setupWaveButton = [this] (juce::ShapeButton& btn, juce::Path path, int lfoIdx, int waveIdx) {
         btn.setShape (path, true, true, false);
+        juce::Colour c = (lfoIdx == 0) ? juce::Colours::purple : juce::Colours::green;
+        btn.setOnColours (c, c, c);
         btn.setRadioGroupId (3 + lfoIdx);
         btn.setClickingTogglesState (true);
         addAndMakeVisible (btn);
@@ -289,10 +299,21 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     addAndMakeVisible (delayTile);
     addAndMakeVisible (compressorTile);
 
+    // Preset Header section
+    pluginNameLabel.setText ("Sonism", juce::dontSendNotification);
+    pluginNameLabel.setFont (juce::Font (24.0f, juce::Font::bold));
+    pluginNameLabel.setJustificationType (juce::Justification::centredLeft);
+    pluginNameLabel.setColour (juce::Label::textColourId, juce::Colours::white);
+    addAndMakeVisible (pluginNameLabel);
+
+    addAndMakeVisible (presetButton);
+    addAndMakeVisible (presetLeftButton);
+    addAndMakeVisible (presetRightButton);
+
     updateOscTabs();
     updateLfoTabs();
     startTimerHz (30);
-    setSize (1000, 700);
+    setSize (1000, 800);
     addMouseListener (this, true);
 }
 
@@ -334,6 +355,7 @@ void PluginEditor::updateLfoTabs()
     // Update display to match the active tab
     int wave = lfoSineButton[activeIdx].getToggleState() ? 0 : (lfoSawButton[activeIdx].getToggleState() ? 1 : 2);
     lfoDisplay.setParameters (wave, lfoPhaseSlider[activeIdx].getValue(), lfoAmountSlider[activeIdx].getValue());
+    lfoDisplay.setColour (activeIdx == 0 ? juce::Colours::purple : juce::Colours::green);
 }
 
 void PluginEditor::visibilityChanged()
@@ -392,11 +414,21 @@ void PluginEditor::paint (juce::Graphics& g)
 void PluginEditor::resized()
 {
     auto area = getLocalBounds();
+    
+    // Header for presets
+    auto headerArea = area.removeFromTop (50).reduced(10, 10);
+    pluginNameLabel.setBounds (headerArea.removeFromLeft (200));
+    
+    auto presetArea = juce::Rectangle<int> ((getWidth() - 360) / 2, headerArea.getY(), 360, 30);
+    presetLeftButton.setBounds (presetArea.removeFromLeft (30));
+    presetRightButton.setBounds (presetArea.removeFromRight (30));
+    presetButton.setBounds (presetArea.reduced (5, 0));
+
     keyboardComponent.setBounds (area.removeFromBottom (100));
 
-    auto lfoEffectsArea = area.removeFromBottom (232);
-    auto bottomSection = area.removeFromBottom (240);
-    outputVisualiser.setBounds (area.removeFromTop (128));
+    auto lfoEffectsArea = area.removeFromBottom (257); // 232 + 25
+    auto bottomSection = area.removeFromBottom (265); // 240 + 25
+    outputVisualiser.setBounds (area.removeFromTop (128)); // 800 - 50 - 100 - 257 - 265 = 128
 
     auto partWidth = bottomSection.getWidth() / 2;
 

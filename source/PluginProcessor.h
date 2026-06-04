@@ -92,11 +92,17 @@ public:
     {
         if (lfoIndex == 1)
         {
-            lfo1Rate = rate; lfo1Amount = amount; lfo1PhaseOffset = phaseOffset; lfo1Wave = waveType;
+            lfo1Rate = rate;
+            lfo1Amount = amount;
+            lfo1PhaseOffset = phaseOffset;
+            lfo1Wave = waveType;
         }
         else if (lfoIndex == 2)
         {
-            lfo2Rate = rate; lfo2Amount = amount; lfo2PhaseOffset = phaseOffset; lfo2Wave = waveType;
+            lfo2Rate = rate;
+            lfo2Amount = amount;
+            lfo2PhaseOffset = phaseOffset;
+            lfo2Wave = waveType;
         }
     }
 
@@ -165,26 +171,38 @@ public:
             {
                 // Advance LFO 1
                 lfo1Angle += lfo1Delta;
-                if (lfo1Angle >= 1.0f) lfo1Angle -= 1.0f;
+                if (lfo1Angle >= 1.0f)
+                    lfo1Angle -= 1.0f;
                 float phase1 = std::fmod (lfo1Angle + lfo1PhaseOffset, 1.0f);
                 float lfo1Val = 0.0f;
-                if (lfo1Wave == 0) lfo1Val = std::sin (phase1 * juce::MathConstants<float>::twoPi);
-                else if (lfo1Wave == 1) lfo1Val = 2.0f * std::abs (2.0f * phase1 - 1.0f) - 1.0f;
-                else if (lfo1Wave == 2) lfo1Val = phase1 < 0.5f ? 1.0f : -1.0f;
-                else if (lfo1Wave == 3) lfo1Val = phase1 * 2.0f - 1.0f;
-                else if (lfo1Wave == 4) lfo1Val = phase1 < 0.25f ? 1.0f : -1.0f;
+                if (lfo1Wave == 0)
+                    lfo1Val = std::sin (phase1 * juce::MathConstants<float>::twoPi);
+                else if (lfo1Wave == 1)
+                    lfo1Val = 2.0f * std::abs (2.0f * phase1 - 1.0f) - 1.0f;
+                else if (lfo1Wave == 2)
+                    lfo1Val = phase1 < 0.5f ? 1.0f : -1.0f;
+                else if (lfo1Wave == 3)
+                    lfo1Val = phase1 * 2.0f - 1.0f;
+                else if (lfo1Wave == 4)
+                    lfo1Val = phase1 < 0.25f ? 1.0f : -1.0f;
                 lfo1Val *= lfo1Amount * 100.0f;
 
                 // Advance LFO 2
                 lfo2Angle += lfo2Delta;
-                if (lfo2Angle >= 1.0f) lfo2Angle -= 1.0f;
+                if (lfo2Angle >= 1.0f)
+                    lfo2Angle -= 1.0f;
                 float phase2 = std::fmod (lfo2Angle + lfo2PhaseOffset, 1.0f);
                 float lfo2Val = 0.0f;
-                if (lfo2Wave == 0) lfo2Val = std::sin (phase2 * juce::MathConstants<float>::twoPi);
-                else if (lfo2Wave == 1) lfo2Val = 2.0f * std::abs (2.0f * phase2 - 1.0f) - 1.0f;
-                else if (lfo2Wave == 2) lfo2Val = phase2 < 0.5f ? 1.0f : -1.0f;
-                else if (lfo2Wave == 3) lfo2Val = phase2 * 2.0f - 1.0f;
-                else if (lfo2Wave == 4) lfo2Val = phase2 < 0.25f ? 1.0f : -1.0f;
+                if (lfo2Wave == 0)
+                    lfo2Val = std::sin (phase2 * juce::MathConstants<float>::twoPi);
+                else if (lfo2Wave == 1)
+                    lfo2Val = 2.0f * std::abs (2.0f * phase2 - 1.0f) - 1.0f;
+                else if (lfo2Wave == 2)
+                    lfo2Val = phase2 < 0.5f ? 1.0f : -1.0f;
+                else if (lfo2Wave == 3)
+                    lfo2Val = phase2 * 2.0f - 1.0f;
+                else if (lfo2Wave == 4)
+                    lfo2Val = phase2 < 0.25f ? 1.0f : -1.0f;
                 lfo2Val *= lfo2Amount * 100.0f;
 
                 auto envelope = (float) (level * adsr.getNextSample());
@@ -194,12 +212,14 @@ public:
                 for (int i = 0; i < 7; ++i)
                 {
                     float currentDetune = detune[i];
-                    if (i >= 1 && i <= 3) currentDetune += lfo1Val;
-                    else if (i >= 4 && i <= 6) currentDetune += lfo2Val;
+                    if (i >= 1 && i <= 3)
+                        currentDetune += lfo1Val;
+                    else if (i >= 4 && i <= 6)
+                        currentDetune += lfo2Val;
 
-                    auto cyclesPerSample = (currentPitchHz * std::pow (2.0, currentDetune / 100.0)) / sampleRate;
+                    auto cyclesPerSample = (currentPitchHz * std::pow (2.0, currentDetune / 1200.0)) / sampleRate;
                     double delta = cyclesPerSample * juce::MathConstants<double>::twoPi;
-                    
+
                     auto sampleValue = getWaveformSample (waveformType[i], currentAngle[i]);
                     auto oscSampleL = sampleValue * mix[i] * envelope * panL[i];
                     auto oscSampleR = sampleValue * mix[i] * envelope * panR[i];
@@ -224,7 +244,7 @@ public:
 
                 ++startSample;
 
-                if (! adsr.isActive())
+                if (!adsr.isActive())
                 {
                     clearCurrentNote();
                     for (int i = 0; i < 7; ++i)
@@ -269,10 +289,10 @@ private:
     float mix[7] = { 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
     float detune[7] = { 0.0f };
     float spread[7] = { 0.0f };
-    
+
     float lfo1Rate = 1.0f, lfo1Amount = 0.0f, lfo1PhaseOffset = 0.0f, lfo1Angle = 0.0f;
     int lfo1Wave = 0;
-    
+
     float lfo2Rate = 1.0f, lfo2Amount = 0.0f, lfo2PhaseOffset = 0.0f, lfo2Angle = 0.0f;
     int lfo2Wave = 0;
     juce::AudioBuffer<float>* oscScopeBuffer[7] = { nullptr };

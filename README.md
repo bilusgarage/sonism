@@ -35,6 +35,12 @@ Sonism is a modern **Supersaw synthesizer plugin** built with the JUCE framework
 - **6-voice polyphony** (configurable in source).
 - **Multiple Plugin Formats**: Standalone, AU, VST3, AUv3, CLAP.
 
+### Coming Soon: Effects
+- **Reverb**
+- **Compressor**
+- **Delay**
+- **(Considering other)**
+
 ---
 
 ## Technical Details

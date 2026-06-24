@@ -2,6 +2,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
+#include "PresetManager.h"
 
 #if (MSVC)
     #include "ipps.h"
@@ -333,6 +334,7 @@ public:
 
     juce::MidiKeyboardState keyboardState;
     juce::AudioProcessorValueTreeState apvts;
+    PresetManager presetManager { apvts };
 
     AudioBufferFifo<float> scopeFifo { 48000 };
     std::unique_ptr<AudioBufferFifo<float>> oscScopeFifos[7];

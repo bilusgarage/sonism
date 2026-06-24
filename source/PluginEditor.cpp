@@ -310,6 +310,40 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     addAndMakeVisible (presetLeftButton);
     addAndMakeVisible (presetRightButton);
 
+    presetButton.onClick = [this] {
+        juce::PopupMenu menu;
+        auto presets = processorRef.presetManager.getAllPresets();
+        for (int i = 0; i < presets.size(); ++i)
+            menu.addItem (i + 1, presets[i]);
+            
+        menu.addSeparator();
+        menu.addItem (1000, "Save Preset...");
+
+        menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (presetButton), [this, presets] (int result) {
+            if (result == 1000)
+            {
+                savePreset();
+            }
+            else if (result > 0 && result <= presets.size())
+            {
+                processorRef.presetManager.loadPreset (presets[result - 1]);
+                updatePresetButtonText();
+            }
+        });
+    };
+
+    presetLeftButton.onClick = [this] {
+        processorRef.presetManager.loadPreviousPreset();
+        updatePresetButtonText();
+    };
+
+    presetRightButton.onClick = [this] {
+        processorRef.presetManager.loadNextPreset();
+        updatePresetButtonText();
+    };
+
+    updatePresetButtonText();
+
     updateOscTabs();
     updateLfoTabs();
     startTimerHz (30);
@@ -356,6 +390,36 @@ void PluginEditor::updateLfoTabs()
     int wave = lfoSineButton[activeIdx].getToggleState() ? 0 : (lfoSawButton[activeIdx].getToggleState() ? 1 : 2);
     lfoDisplay.setParameters (wave, lfoPhaseSlider[activeIdx].getValue(), lfoAmountSlider[activeIdx].getValue());
     lfoDisplay.setColour (activeIdx == 0 ? juce::Colours::purple : juce::Colours::green);
+}
+
+void PluginEditor::updatePresetButtonText()
+{
+    auto currentPreset = processorRef.presetManager.getCurrentPreset();
+    if (currentPreset.isNotEmpty())
+        presetButton.setButtonText (currentPreset);
+    else
+        presetButton.setButtonText ("Default Preset");
+}
+
+void PluginEditor::savePreset()
+{
+    auto* alert = new juce::AlertWindow ("Save Preset", "Enter a name for the new preset:", juce::MessageBoxIconType::NoIcon);
+    alert->addTextEditor ("presetName", processorRef.presetManager.getCurrentPreset());
+    alert->addButton ("Save", 1, juce::KeyPress (juce::KeyPress::returnKey));
+    alert->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
+
+    alert->enterModalState (true, juce::ModalCallbackFunction::create ([this, alert] (int result) {
+        if (result == 1)
+        {
+            auto name = alert->getTextEditorContents ("presetName");
+            if (name.isNotEmpty())
+            {
+                processorRef.presetManager.savePreset (name);
+                updatePresetButtonText();
+            }
+        }
+        delete alert;
+    }));
 }
 
 void PluginEditor::visibilityChanged()
